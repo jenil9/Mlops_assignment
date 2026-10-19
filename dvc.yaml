@@ -1,0 +1,26 @@
+stages:
+  download:
+    cmd: python -m src.data.download
+    deps:
+      - src/data/download.py
+    params:
+      - data.url
+      - data.raw_dir
+    outs:
+      - data/raw
+
+  preprocess:
+    cmd: python -m src.data.preprocess
+    deps:
+      - src/data/schemas.py
+      - src/data/preprocess.py
+      - data/raw
+    params:
+      - data.raw_dir
+      - data.processed_dir
+      - split
+    outs:
+      - data/processed
+    metrics:
+      - metrics/preprocess.json:
+          cache: false

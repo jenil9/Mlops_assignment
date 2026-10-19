@@ -1,0 +1,55 @@
+schema: '2.0'
+stages:
+  download:
+    cmd: python -m src.data.download
+    deps:
+    - path: src/data/download.py
+      hash: md5
+      md5: 2f663ed3dd94425c5d96b2d0968bde34
+      size: 1869
+    params:
+      params.yaml:
+        data.raw_dir: data/raw
+        data.url:
+          https://files.grouplens.org/datasets/movielens/ml-latest-small.zip
+    outs:
+    - path: data/raw
+      hash: md5
+      md5: 2485dc6e82cb1c7a7191382b6f398e90.dir
+      size: 2978154
+      nfiles: 2
+  preprocess:
+    cmd: python -m src.data.preprocess
+    deps:
+    - path: data/raw
+      hash: md5
+      md5: 2485dc6e82cb1c7a7191382b6f398e90.dir
+      size: 2978154
+      nfiles: 2
+    - path: src/data/preprocess.py
+      hash: md5
+      md5: d02399df1a942266a761cf5c379fc1dc
+      size: 5464
+    - path: src/data/schemas.py
+      hash: md5
+      md5: 73e8b7b31080ce44c13db6e3d0987e0d
+      size: 807
+    params:
+      params.yaml:
+        data.processed_dir: data/processed
+        data.raw_dir: data/raw
+        split:
+          train: 0.7
+          val: 0.1
+          test: 0.1
+          stream: 0.1
+    outs:
+    - path: data/processed
+      hash: md5
+      md5: 2ba08fb0ac3137e242986aa2f1bab053.dir
+      size: 1957886
+      nfiles: 5
+    - path: metrics/preprocess.json
+      hash: md5
+      md5: 242a3720bc0864969cb1dd2b7c0d27cd
+      size: 651

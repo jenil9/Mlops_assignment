@@ -1,0 +1,41 @@
+data:
+  url: https://files.grouplens.org/datasets/movielens/ml-latest-small.zip
+  raw_dir: data/raw
+  processed_dir: data/processed
+split:
+  train: 0.70
+  val: 0.10
+  test: 0.10
+  stream: 0.10
+model:
+  factors: 32
+  reg: 0.1
+  iterations: 15
+  seed: 42
+  min_item_ratings: 10
+eval:
+  k: 10
+  relevant_threshold: 4.0
+serving:
+  min_ratings_personalize: 3
+  liked_threshold: 4.0
+  because_rows: 3
+  default_n: 10
+  max_n: 50
+drift:
+  interval_seconds: 60
+  min_rows: 500
+  share_threshold: 0.3
+  reference_sample: 10000
+  keep_reports: 20
+retrain:
+  interval_seconds: 60
+  min_new_rows: 500
+  holdout_fraction: 0.2
+  min_improvement: 0.01
+  max_test_drop: 0.10
+simulator:
+  rate: 20
+  drift_genre: Horror
+  drift_fraction: 0.8
+  drift_pool_size: 30
