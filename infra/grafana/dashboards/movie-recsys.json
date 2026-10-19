@@ -1,0 +1,125 @@
+{
+  "uid": "movie-recsys",
+  "title": "Movie RecSys",
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Requests per second per replica",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (instance) (rate(http_requests_total[30s]))",
+          "legendFormat": "{{instance}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "p95 latency & error rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p95 latency"
+        },
+        {
+          "expr": "sum(rate(http_requests_total{status=~\"5..\"}[1m])) / sum(rate(http_requests_total[1m]))",
+          "legendFormat": "error rate"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Traffic by source (real vs simulator)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (source) (rate(http_requests_total[30s]))",
+          "legendFormat": "{{source}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Recommendation kinds (stacked)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "stacking": { "mode": "normal" } }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (kind) (rate(recommendations_served_total[1m]))",
+          "legendFormat": "{{kind}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Feedback per minute & average rating",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (source) (increase(feedback_total[1m]))",
+          "legendFormat": "feedback {{source}}"
+        },
+        {
+          "expr": "sum(rate(feedback_rating_sum_total[5m])) / sum(rate(feedback_total[5m]))",
+          "legendFormat": "avg rating"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Model version per replica",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "model_version",
+          "legendFormat": "{{instance}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Drift monitoring",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "drift_share",
+          "legendFormat": "drift_share"
+        },
+        {
+          "expr": "drift_detected",
+          "legendFormat": "drift_detected"
+        },
+        {
+          "expr": "drift_window_rows",
+          "legendFormat": "window_rows"
+        },
+        {
+          "expr": "live_hit_rate",
+          "legendFormat": "live_hit_rate"
+        }
+      ]
+    }
+  ]
+}

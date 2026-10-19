@@ -1,0 +1,44 @@
+groups:
+  - name: movie-recsys
+    rules:
+      - alert: ApiDown
+        expr: up{job="api"} == 0
+        for: 15s
+        labels:
+          severity: critical
+        annotations:
+          summary: "API replica is down"
+          description: "Instance {{ $labels.instance }} has been down for more than 15 seconds."
+
+      - alert: HighErrorRate
+        expr: >
+          sum(rate(http_requests_total{status=~"5.."}[1m]))
+          /
+          sum(rate(http_requests_total[1m])) > 0.05
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High HTTP 5xx error rate"
+          description: "More than 5% of requests are returning 5xx errors."
+
+      - alert: HighLatencyP95
+        expr: >
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[1m])) by (le)
+          ) > 0.5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p95 latency"
+          description: "p95 latency has exceeded 500ms for 1 minute."
+
+      - alert: DriftDetected
+        expr: drift_detected == 1
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Data drift detected"
+          description: "Drift has been detected in the incoming rating distribution."

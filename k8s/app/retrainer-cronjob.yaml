@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: retrainer
+  namespace: movie-recsys
+spec:
+  schedule: "* * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 900
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: retrainer
+              image: movie-recsys-trainer:dev
+              imagePullPolicy: IfNotPresent
+              command:
+                - python
+                - -m
+                - src.train.retrain
+                - --auto
+              env:
+                - name: API_HEADLESS_HOST
+                  value: "api-headless:8000"
+              envFrom:
+                - secretRef:
+                    name: app-secrets
+              volumeMounts:
+                - name: data
+                  mountPath: /app/data/processed
+                  readOnly: true
+                - name: params
+                  mountPath: /app/params.yaml
+                  subPath: params.yaml
+          volumes:
+            - name: data
+              hostPath:
+                path: /mnt/data/processed
+                type: Directory
+            - name: params
+              configMap:
+                name: params

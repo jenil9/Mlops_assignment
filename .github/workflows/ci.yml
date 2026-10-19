@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint with ruff
+        run: ruff check .
+
+      - name: Run tests
+        run: pytest -q
+
+      - name: Run DVC pipeline
+        run: dvc repro
+
+      - name: Check dvc.lock is up to date
+        run: |
+          if ! git diff --exit-code dvc.lock metrics/preprocess.json; then
+            echo "ERROR: dvc.lock or metrics/preprocess.json has changed."
+            echo "Please run 'dvc repro' locally and commit the updated files."
+            exit 1
+          fi
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: docker compose build
+
+  smoke:
+    runs-on: ubuntu-latest
+    needs: lint-test
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          cp .env.example .env
+
+      - name: Prepare data
+        run: make data
+
+      - name: Build images
+        run: make build
+
+      - name: Start infrastructure
+        run: make infra
+
+      - name: Train model
+        run: make train
+
+      - name: Start app services
+        run: make up
+
+      - name: Run smoke tests
+        run: bash scripts/smoke_test.sh
+
+      - name: Print logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Teardown
+        if: always()
+        run: make down

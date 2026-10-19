@@ -32,6 +32,7 @@ class Bundle:
     popularity_order: list[int]
     popularity_counts: dict[int, int]
     user_history_map: dict[int, set[int]]
+    user_history_ratings: dict[int, dict[int, float]]
     movie_meta: dict[int, dict[str, Any]]
 
 
@@ -137,8 +138,12 @@ def _create_bundle_instance(
     popularity_counts = {int(r.movieId): int(r.n_ratings) for r in popularity.itertuples()}
 
     user_history_map: dict[int, set[int]] = {}
+    user_history_ratings: dict[int, dict[int, float]] = {}
     for uid, group in user_history.groupby("userId"):
         user_history_map[int(uid)] = set(group["movieId"].astype(int))
+        user_history_ratings[int(uid)] = {
+            int(r.movieId): float(r.rating) for r in group.itertuples()
+        }
 
     movie_meta: dict[int, dict[str, Any]] = {}
     for r in movies.itertuples():
@@ -163,6 +168,7 @@ def _create_bundle_instance(
         popularity_order=popularity_order,
         popularity_counts=popularity_counts,
         user_history_map=user_history_map,
+        user_history_ratings=user_history_ratings,
         movie_meta=movie_meta,
     )
 

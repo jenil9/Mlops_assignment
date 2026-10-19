@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movie Recommender System</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-hover: #334155;
+      --accent: #38bdf8;
+      --accent-hover: #0ea5e9;
+      --star-active: #fbbf24;
+      --star-inactive: #64748b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --danger: #ef4444;
+      --success: #22c55e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2rem;
+    }
+    .logo-area h1 {
+      font-size: 1.5rem;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .auth-box {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    input {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      outline: none;
+    }
+    input:focus { border-color: var(--accent); }
+    button {
+      background: var(--accent);
+      color: #0f172a;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:hover { background: var(--accent-hover); }
+    button.secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    button.secondary:hover { background: var(--card-bg); }
+    .auth-error {
+      color: var(--danger);
+      font-size: 0.8rem;
+      width: 100%;
+      margin-top: 0.25rem;
+    }
+    .preview-bar {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid var(--accent);
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: 2rem 0 1rem 0;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .carousel {
+      display: flex;
+      gap: 1.25rem;
+      overflow-x: auto;
+      padding-bottom: 1rem;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .carousel::-webkit-scrollbar { height: 6px; }
+    .carousel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      min-width: 240px;
+      max-width: 240px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .card:hover {
+      background: var(--card-hover);
+      transform: translateY(-2px);
+    }
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      line-height: 1.3;
+      margin-bottom: 0.5rem;
+      word-break: break-word;
+    }
+    .genres {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-bottom: 1rem;
+    }
+    .genre-chip {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+    }
+    .rating-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: auto;
+      padding-top: 0.75rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .stars {
+      display: flex;
+      gap: 0.25rem;
+    }
+    .star {
+      cursor: pointer;
+      color: var(--star-inactive);
+      font-size: 1.2rem;
+      user-select: none;
+      transition: color 0.15s;
+    }
+    .star.filled { color: var(--star-active); }
+    .star.disabled { cursor: not-allowed; opacity: 0.5; }
+    .score-badge {
+      font-size: 0.75rem;
+      color: var(--accent);
+      font-weight: bold;
+    }
+    .hidden { display: none !important; }
+    #toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: var(--card-bg);
+      border: 1px solid var(--accent);
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      font-size: 0.875rem;
+      z-index: 1000;
+      transition: opacity 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo-area">
+      <h1>🍿 MovieRecsys</h1>
+    </div>
+
+    <!-- Logged out controls -->
+    <div id="auth-logged-out" class="auth-box">
+      <input type="text" id="username" placeholder="Username" autocomplete="username">
+      <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+      <button onclick="login()">Log In</button>
+      <button class="secondary" onclick="signup()">Sign Up</button>
+      <div id="auth-error" class="auth-error"></div>
+    </div>
+
+    <!-- Logged in controls -->
+    <div id="auth-logged-in" class="auth-box hidden">
+      <span>Hello, <strong id="user-display" style="color:var(--accent);">User</strong></span>
+      <button class="secondary" onclick="logout()">Log Out</button>
+    </div>
+
+    <!-- Preview dropdown -->
+    <div class="auth-box">
+      <select id="preview-select" onchange="onPreviewSelected()" style="background:var(--card-bg);color:var(--text);border:1px solid var(--border);padding:0.5rem;border-radius:6px;">
+        <option value="">Preview MovieLens user...</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- Preview active banner -->
+  <div id="preview-banner" class="preview-bar hidden">
+    <span id="preview-text">Read-only preview of MovieLens user</span>
+    <button class="secondary" onclick="exitPreview()">Exit Preview</button>
+  </div>
+
+  <main id="content">
+    <!-- Recommended for you (personalized) -->
+    <section id="sec-recommended" class="hidden">
+      <h2 class="section-title">✨ Recommended for you</h2>
+      <div id="row-recommended" class="carousel"></div>
+    </section>
+
+    <!-- Because you liked rows -->
+    <div id="because-container"></div>
+
+    <!-- Popular movies -->
+    <section id="sec-popular">
+      <h2 class="section-title">🔥 Popular movies</h2>
+      <div id="row-popular" class="carousel"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="hidden"></div>
+
+  <script>
+    let token = localStorage.getItem('token') || null;
+    let previewUserId = null;
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3500);
+    }
+
+    async function apiRequest(endpoint, method = 'GET', body = null) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const opts = { method, headers };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(endpoint, opts);
+      if (res.status === 401 && token) {
+        localStorage.removeItem('token');
+        token = null;
+        updateAuthUI(null);
+      }
+      return res;
+    }
+
+    function initPreviewDropdown() {
+      const sel = document.getElementById('preview-select');
+      for (let i = 1; i <= 610; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = `User ${i}`;
+        sel.appendChild(opt);
+      }
+    }
+
+    function updateAuthUI(user) {
+      const outBox = document.getElementById('auth-logged-out');
+      const inBox = document.getElementById('auth-logged-in');
+      const userDisplay = document.getElementById('user-display');
+      const authError = document.getElementById('auth-error');
+      authError.textContent = '';
+
+      if (user) {
+        outBox.classList.add('hidden');
+        inBox.classList.remove('hidden');
+        userDisplay.textContent = user.username;
+      } else {
+        inBox.classList.add('hidden');
+        outBox.classList.remove('hidden');
+      }
+    }
+
+    async function checkAuth() {
+      if (!token) {
+        updateAuthUI(null);
+        return;
+      }
+      try {
+        const res = await apiRequest('/me');
+        if (res.ok) {
+          const user = await res.json();
+          updateAuthUI(user);
+        } else {
+          updateAuthUI(null);
+        }
+      } catch (e) {
+        updateAuthUI(null);
+      }
+    }
+
+    async function signup() {
+      const u = document.getElementById('username').value;
+      const p = document.getElementById('password').value;
+      const err = document.getElementById('auth-error');
+      err.textContent = '';
+      const res = await apiRequest('/signup', 'POST', { username: u, password: p });
+      const data = await res.json();
+      if (res.ok) {
+        token = data.token;
+        localStorage.setItem('token', token);
+        updateAuthUI({ username: data.username });
+        loadRows();
+      } else {
+        err.textContent = data.detail || 'Sign up failed';
+      }
+    }
+
+    async function login() {
+      const u = document.getElementById('username').value;
+      const p = document.getElementById('password').value;
+      const err = document.getElementById('auth-error');
+      err.textContent = '';
+      const res = await apiRequest('/login', 'POST', { username: u, password: p });
+      const data = await res.json();
+      if (res.ok) {
+        token = data.token;
+        localStorage.setItem('token', token);
+        updateAuthUI({ username: data.username });
+        loadRows();
+      } else {
+        err.textContent = data.detail || 'Login failed';
+      }
+    }
+
+    async function logout() {
+      await apiRequest('/logout', 'POST');
+      token = null;
+      localStorage.removeItem('token');
+      updateAuthUI(null);
+      loadRows();
+    }
+
+    async function rateMovie(movieId, rating) {
+      if (previewUserId !== null) return;
+      if (!token) {
+        document.getElementById('username').focus();
+        showToast('Please sign up or log in to rate movies');
+        return;
+      }
+      const res = await apiRequest('/feedback', 'POST', { movie_id: movieId, rating });
+      if (res.ok) {
+        showToast(`Saved rating: ${rating} ★`);
+        loadRows();
+      } else {
+        const d = await res.json();
+        showToast(d.detail || 'Rating failed');
+      }
+    }
+
+    function renderMovieCard(movie, isPreview = false) {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const title = document.createElement('div');
+      title.className = 'card-title';
+      title.textContent = movie.title;
+      card.appendChild(title);
+
+      const genres = document.createElement('div');
+      genres.className = 'genres';
+      (movie.genres || []).forEach(g => {
+        const chip = document.createElement('span');
+        chip.className = 'genre-chip';
+        chip.textContent = g;
+        genres.appendChild(chip);
+      });
+      card.appendChild(genres);
+
+      const ratingRow = document.createElement('div');
+      ratingRow.className = 'rating-row';
+
+      const stars = document.createElement('div');
+      stars.className = 'stars';
+      for (let s = 1; s <= 5; s++) {
+        const star = document.createElement('span');
+        star.className = 'star' + (isPreview ? ' disabled' : '');
+        star.textContent = '★';
+        if (!isPreview) {
+          star.onclick = () => rateMovie(movie.movie_id, s);
+        }
+        stars.appendChild(star);
+      }
+      ratingRow.appendChild(stars);
+
+      if (movie.score !== undefined) {
+        const score = document.createElement('span');
+        score.className = 'score-badge';
+        score.textContent = Number(movie.score).toFixed(1);
+        ratingRow.appendChild(score);
+      }
+
+      card.appendChild(ratingRow);
+      return card;
+    }
+
+    async function loadRows() {
+      if (previewUserId !== null) {
+        await loadPreview(previewUserId);
+        return;
+      }
+
+      // Load popular
+      try {
+        const res = await apiRequest('/popular');
+        if (res.ok) {
+          const data = await res.json();
+          const row = document.getElementById('row-popular');
+          row.innerHTML = '';
+          (data.movies || []).forEach(m => row.appendChild(renderMovieCard(m)));
+        }
+      } catch (e) {}
+
+      // Logged in only
+      const secRec = document.getElementById('sec-recommended');
+      const rowRec = document.getElementById('row-recommended');
+      const becauseContainer = document.getElementById('because-container');
+      becauseContainer.innerHTML = '';
+
+      if (!token) {
+        secRec.classList.add('hidden');
+        return;
+      }
+
+      try {
+        const resRec = await apiRequest('/recommend');
+        if (resRec.ok) {
+          const data = await resRec.json();
+          if (data.kind === 'personalized' && (data.movies || []).length > 0) {
+            secRec.classList.remove('hidden');
+            rowRec.innerHTML = '';
+            data.movies.forEach(m => rowRec.appendChild(renderMovieCard(m)));
+          } else {
+            secRec.classList.add('hidden');
+          }
+        }
+      } catch (e) {
+        secRec.classList.add('hidden');
+      }
+
+      try {
+        const resBec = await apiRequest('/because');
+        if (resBec.ok) {
+          const data = await resBec.json();
+          (data.rows || []).forEach(rowItem => {
+            if (!rowItem.movies || rowItem.movies.length === 0) return;
+            const sec = document.createElement('section');
+            const h = document.createElement('h2');
+            h.className = 'section-title';
+            h.textContent = `🎬 Because you liked ${rowItem.because_you_liked.title}`;
+            sec.appendChild(h);
+
+            const carousel = document.createElement('div');
+            carousel.className = 'carousel';
+            rowItem.movies.forEach(m => carousel.appendChild(renderMovieCard(m)));
+            sec.appendChild(carousel);
+            becauseContainer.appendChild(sec);
+          });
+        }
+      } catch (e) {}
+    }
+
+    async function onPreviewSelected() {
+      const sel = document.getElementById('preview-select');
+      const uid = sel.value;
+      if (!uid) return;
+      previewUserId = parseInt(uid);
+      await loadPreview(previewUserId);
+    }
+
+    async function loadPreview(uid) {
+      const banner = document.getElementById('preview-banner');
+      const bannerText = document.getElementById('preview-text');
+      bannerText.textContent = `Read-only preview of MovieLens user ${uid}`;
+      banner.classList.remove('hidden');
+
+      const res = await apiRequest(`/preview/${uid}`);
+      if (!res.ok) {
+        showToast('That user is not in the model');
+        exitPreview();
+        return;
+      }
+      const data = await res.json();
+
+      // Recommended
+      const secRec = document.getElementById('sec-recommended');
+      const rowRec = document.getElementById('row-recommended');
+      rowRec.innerHTML = '';
+      if (data.recommended && data.recommended.movies && data.recommended.movies.length > 0) {
+        secRec.classList.remove('hidden');
+        data.recommended.movies.forEach(m => rowRec.appendChild(renderMovieCard(m, true)));
+      } else {
+        secRec.classList.add('hidden');
+      }
+
+      // Because
+      const becauseContainer = document.getElementById('because-container');
+      becauseContainer.innerHTML = '';
+      if (data.because && data.because.rows) {
+        data.because.rows.forEach(rowItem => {
+          if (!rowItem.movies || rowItem.movies.length === 0) return;
+          const sec = document.createElement('section');
+          const h = document.createElement('h2');
+          h.className = 'section-title';
+          h.textContent = `🎬 Because you liked ${rowItem.because_you_liked.title}`;
+          sec.appendChild(h);
+
+          const carousel = document.createElement('div');
+          carousel.className = 'carousel';
+          rowItem.movies.forEach(m => carousel.appendChild(renderMovieCard(m, true)));
+          sec.appendChild(carousel);
+          becauseContainer.appendChild(sec);
+        });
+      }
+
+      // Popular
+      const resPop = await apiRequest('/popular');
+      if (resPop.ok) {
+        const popData = await resPop.json();
+        const row = document.getElementById('row-popular');
+        row.innerHTML = '';
+        (popData.movies || []).forEach(m => row.appendChild(renderMovieCard(m, true)));
+      }
+    }
+
+    function exitPreview() {
+      previewUserId = null;
+      document.getElementById('preview-select').value = '';
+      document.getElementById('preview-banner').classList.add('hidden');
+      loadRows();
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      initPreviewDropdown();
+      await checkAuth();
+      await loadRows();
+    });
+  </script>
+</body>
+</html>

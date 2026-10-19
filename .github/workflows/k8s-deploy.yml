@@ -1,0 +1,50 @@
+name: Kubernetes Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+timeout-minutes: 40
+
+jobs:
+  k8s-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          cp .env.example .env
+
+      - name: Prepare data
+        run: make data
+
+      - name: Install kind
+        uses: helm/kind-action@v1
+        with:
+          install_only: true
+
+      - name: Deploy to kind cluster
+        run: make k8s-up
+
+      - name: Run smoke tests
+        run: bash scripts/smoke_test.sh http://localhost:8080
+
+      - name: Debug on failure
+        if: failure()
+        run: |
+          kubectl -n movie-recsys get pods
+          kubectl -n movie-recsys describe pods
+          kubectl -n movie-recsys logs --all-containers=true --ignore-errors=true -l app=api || true
+
+      - name: Teardown
+        if: always()
+        run: make k8s-down

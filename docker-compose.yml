@@ -1,0 +1,202 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d app"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: docker/mlflow.Dockerfile
+    image: movie-recsys-mlflow:dev
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/mlflow
+      --artifacts-destination /mlflow-artifacts
+      --serve-artifacts
+    volumes:
+      - mlflow-artifacts:/mlflow-artifacts
+    ports:
+      - "5004:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  trainer:
+    build:
+      context: .
+      dockerfile: docker/trainer.Dockerfile
+    image: movie-recsys-trainer:dev
+    env_file: .env
+    environment:
+      API_RELOAD_TARGETS: "http://api1:8000,http://api2:8000"
+    volumes:
+      - ./data/processed:/app/data/processed:ro
+      - ./params.yaml:/app/params.yaml:ro
+    depends_on:
+      mlflow:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
+    restart: "no"
+
+  api1:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    image: movie-recsys-api:dev
+    env_file: .env
+    environment:
+      REPLICA_NAME: api1
+    volumes:
+      - ./params.yaml:/app/params.yaml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  api2:
+    image: movie-recsys-api:dev
+    env_file: .env
+    environment:
+      REPLICA_NAME: api2
+    volumes:
+      - ./params.yaml:/app/params.yaml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      api1:
+        condition: service_healthy
+      api2:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  simulator:
+    build:
+      context: .
+      dockerfile: docker/simulator.Dockerfile
+    image: movie-recsys-simulator:dev
+    env_file: .env
+    environment:
+      API_URL: "http://nginx:80"
+    volumes:
+      - ./data/processed:/app/data/processed:ro
+      - ./params.yaml:/app/params.yaml:ro
+    depends_on:
+      nginx:
+        condition: service_healthy
+    profiles:
+      - tools
+    restart: "no"
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
+
+  drift:
+    build:
+      context: .
+      dockerfile: docker/drift.Dockerfile
+    image: movie-recsys-drift:dev
+    env_file: .env
+    volumes:
+      - ./params.yaml:/app/params.yaml:ro
+      - ./reports:/app/reports
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    restart: unless-stopped
+
+  retrainer:
+    image: movie-recsys-trainer:dev
+    env_file: .env
+    environment:
+      API_RELOAD_TARGETS: "http://api1:8000,http://api2:8000"
+    command: ["python", "-m", "src.train.retrain", "--loop"]
+    volumes:
+      - ./data/processed:/app/data/processed:ro
+      - ./params.yaml:/app/params.yaml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  mlflow-artifacts:
+  grafana-data:

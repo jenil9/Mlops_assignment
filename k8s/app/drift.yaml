@@ -1,0 +1,51 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drift
+  namespace: movie-recsys
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: drift
+  template:
+    metadata:
+      labels:
+        app: drift
+    spec:
+      containers:
+        - name: drift
+          image: movie-recsys-drift:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - secretRef:
+                name: app-secrets
+          volumeMounts:
+            - name: params
+              mountPath: /app/params.yaml
+              subPath: params.yaml
+            - name: reports
+              mountPath: /app/reports
+      volumes:
+        - name: params
+          configMap:
+            name: params
+        - name: reports
+          hostPath:
+            path: /mnt/reports
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: drift
+  namespace: movie-recsys
+spec:
+  selector:
+    app: drift
+  ports:
+    - port: 8001
+      targetPort: 8001
